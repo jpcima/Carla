@@ -25,11 +25,11 @@ from carla_config import *
 # Imports (Global)
 
 if config_UseQt5:
-    from PyQt5.QtCore import Qt, QCoreApplication, QSettings
+    from PyQt5.QtCore import Qt, QCoreApplication, QSettings, QTranslator, QLocale, QLibraryInfo
     from PyQt5.QtGui import QColor, QPalette
     from PyQt5.QtWidgets import QApplication
 else:
-    from PyQt4.QtCore import Qt, QCoreApplication, QSettings
+    from PyQt4.QtCore import Qt, QCoreApplication, QSettings, QTranslator, QLocale, QLibraryInfo
     from PyQt4.QtGui import QApplication, QColor, QPalette
 
 # ------------------------------------------------------------------------------------------------------------
@@ -52,6 +52,23 @@ class CarlaApplication(object):
         # Needed for local wine build
         if WINDOWS and CWD.endswith(("frontend", "resources")) and os.getenv("CXFREEZE") is None:
             QApplication.addLibraryPath("C:\\Python34\\Lib\\site-packages\\PyQt5\\plugins")
+
+        # Set up translations
+        currentLocale = QLocale()
+        appTranslator = QTranslator()
+        sysTranslator = None
+        pathTranslations = os.path.join(pathResources, "translations")
+        if appTranslator.load(currentLocale, "carla", "_", pathTranslations):
+            if MACOS or WINDOWS:
+                pathSysTranslations = pathTranslations
+            else:
+                pathSysTranslations = QLibraryInfo.location(QLibraryInfo.TranslationsPath)
+            sysTranslator = QTranslator()
+            sysTranslator.load(currentLocale, "qt", "_", pathSysTranslations)
+        else:
+            appTranslator = None
+        self.fAppTranslator = appTranslator
+        self.fSysTranslator = sysTranslator
 
         # Use binary dir as library path (except in Windows)
         if os.path.exists(pathBinaries) and not WINDOWS:
@@ -233,6 +250,10 @@ class CarlaApplication(object):
         self.fApp.setApplicationName(appName)
         self.fApp.setApplicationVersion(VERSION)
         self.fApp.setOrganizationName("falkTX")
+
+        if self.fAppTranslator is not None:
+            self.fApp.installTranslator(self.fAppTranslator)
+            self.fApp.installTranslator(self.fSysTranslator)
 
         if gCarla.nogui:
             return
